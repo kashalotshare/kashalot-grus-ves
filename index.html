@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Калькулятор груза Кашалот</title>
+<style>
+/* Layout: одна колонка карточек-секций, как в генераторе КП; итоги — сверху, детали — ниже */
+:root{
+  --navy:#0f2740; --teal:#1f8a8a; --ink:#11202e; --muted:#6b7d8c;
+  --bg:#f4f6f8; --card:#fff; --line:#e3e9ee; --accent:#c8852a; --on-teal:#fff;
+  --teal-soft:rgba(31,138,138,.12); --warn-bg:rgba(200,133,42,.12);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){--navy:#9fc6e0;--teal:#3fb3b3;--ink:#e8eef3;--muted:#9aa9b6;--bg:#0d1620;--card:#152230;--line:#243443;--accent:#e0a352;--on-teal:#0d1620;--teal-soft:rgba(63,179,179,.16);--warn-bg:rgba(224,163,82,.14);color-scheme:dark}
+}
+:root[data-theme="dark"]{--navy:#9fc6e0;--teal:#3fb3b3;--ink:#e8eef3;--muted:#9aa9b6;--bg:#0d1620;--card:#152230;--line:#243443;--accent:#e0a352;--on-teal:#0d1620;--teal-soft:rgba(63,179,179,.16);--warn-bg:rgba(224,163,82,.14);color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;margin:0}
+.wrap{max-width:860px;margin:0 auto;padding-block:36px 80px;padding-inline:16px}
+h1{font-size:26px;color:var(--navy);margin:0 0 4px;text-wrap:balance}
+.sub{color:var(--muted);font-size:14px;margin:0 0 26px}
+section{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px 22px;margin-bottom:16px}
+section h2{font-size:13px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600;margin:0 0 14px}
+.num{font-variant-numeric:tabular-nums}
+
+/* Итоги */
+.totals{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.tile{background:var(--bg);border:1px solid var(--line);border-radius:11px;padding:12px 14px;min-width:0}
+.tile .l{font-size:12px;color:var(--muted)}
+.tile .v{font-size:24px;font-weight:700;color:var(--navy);line-height:1.2}
+.tile .u{font-size:13px;color:var(--muted);font-weight:500}
+.tile.main{background:var(--teal-soft);border-color:transparent}
+.tile.main .v{color:var(--teal)}
+.note{font-size:12.5px;color:var(--muted);margin:12px 0 0}
+
+/* Позиции */
+.items{display:flex;flex-direction:column;gap:8px}
+.item{display:grid;grid-template-columns:1fr 120px;gap:12px;align-items:center;background:var(--bg);border:1px solid var(--line);border-radius:11px;padding:10px 14px}
+.item .name{font-weight:600;font-size:14.5px}
+.item .meta{font-size:12.5px;color:var(--muted)}
+.item .meta.miss{color:var(--accent);font-weight:600}
+.cin{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:8px}
+.cin label{font-size:12px}
+.cin input{background:var(--card)}
+.del{grid-column:1/-1;justify-self:start;background:none;border:none;color:var(--muted);font-size:12.5px;padding:0;cursor:pointer;text-decoration:underline}
+.del:hover{color:var(--accent)}
+.add-box{background:none;border:1px dashed var(--teal);border-radius:11px;padding:11px 16px;cursor:pointer;color:var(--teal);font-size:14px;font-weight:600;text-align:left}
+.add-box:hover{background:var(--teal-soft)}
+.qty{display:flex;align-items:center;border:1px solid var(--line);border-radius:9px;background:var(--card);overflow:hidden}
+.qty button{border:none;background:none;color:var(--teal);font-size:18px;width:34px;height:36px;cursor:pointer;flex:none}
+.qty button:hover{background:var(--teal-soft)}
+.qty input{border:none;background:none;width:100%;min-width:0;text-align:center;font-size:16px;font-weight:600;color:var(--ink);padding:0;-moz-appearance:textfield}
+.qty input::-webkit-inner-spin-button{display:none}
+.row-opts{display:flex;gap:14px;flex-wrap:wrap;margin-top:14px;align-items:end}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+label,.lbl{font-size:13px;color:var(--muted);font-weight:500}
+input[type=number],select{padding:8px 11px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--ink);font-size:14px;outline:none;width:100%}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--teal);outline-offset:1px}
+.seg{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.seg button{border:none;background:var(--bg);color:var(--ink);padding:8px 14px;font-size:14px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--teal);color:var(--on-teal);font-weight:600}
+
+/* Таблица */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;text-align:right;padding:6px 8px;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+td{padding:8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+tfoot td{font-weight:700;color:var(--navy);border-bottom:none}
+
+/* Параметры */
+details{border-top:1px solid var(--line);padding-top:4px}
+summary{cursor:pointer;color:var(--teal);font-weight:600;font-size:14px;padding:8px 0}
+.params{display:flex;flex-direction:column;gap:10px;margin-top:8px}
+.prow{display:grid;grid-template-columns:1.4fr repeat(4,minmax(60px,1fr));gap:8px;align-items:end}
+.prow .pn{font-weight:600;font-size:14px;padding-bottom:8px}
+.chk{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);padding-bottom:8px;white-space:nowrap}
+
+/* Кнопки */
+.actions{display:flex;gap:10px;flex-wrap:wrap}
+.btn{background:var(--teal);color:var(--on-teal);border:none;border-radius:10px;padding:11px 20px;font-size:14.5px;font-weight:600;cursor:pointer}
+.btn:hover{filter:brightness(1.07)}
+.btn-sec{background:transparent;color:var(--navy);border:1px solid var(--line);border-radius:10px;padding:11px 18px;font-size:14px;cursor:pointer}
+.btn-sec:hover{border-color:var(--teal);color:var(--teal)}
+textarea{width:100%;min-height:150px;margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);font:13px/1.5 ui-monospace,Menlo,Consolas,monospace;resize:vertical}
+.toast{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom,0px));right:20px;background:var(--teal);color:var(--on-teal);padding:10px 16px;border-radius:10px;font-size:13px;opacity:0;transition:opacity .25s;pointer-events:none}
+.toast.show{opacity:1}
+
+@media (max-width:640px){
+  .prow{grid-template-columns:repeat(4,1fr)}
+  .prow .pn{grid-column:1/-1;padding-bottom:0}
+  .prow .chk{grid-column:1/-1}
+}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <h1>Калькулятор груза</h1>
+  <p class="sub">Введите количество, и страница посчитает вес, объём и площадь пола для заявки перевозчику.</p>
+
+  <section aria-labelledby="h-tot">
+    <h2 id="h-tot">Итого</h2>
+    <div class="totals">
+      <div class="tile main"><div class="l">Объём</div><div class="v num" id="t-vol">0</div><div class="u">м³</div></div>
+      <div class="tile"><div class="l">Вес</div><div class="v num" id="t-kg">0</div><div class="u">кг</div></div>
+      <div class="tile"><div class="l">По полу</div><div class="v num" id="t-floor">0</div><div class="u">м²</div></div>    </div>
+    <p class="note" id="t-note"></p>
+  </section>
+
+  <section aria-labelledby="h-items">
+    <h2 id="h-items">Что везём</h2>
+    <div class="items" id="items"></div>
+    <div class="row-opts">
+      <div class="field" style="flex:1 1 300px">
+        <label for="kconf">Исполнение кашалота</label>
+        <select id="kconf"></select>
+      </div>
+      <div class="field" style="width:190px">
+        <label for="pack">Упаковка кашалота, +см с каждой стороны</label>
+        <input type="number" id="pack" min="0" step="1" value="0">
+      </div>
+      <div class="field" style="width:170px">
+        <label for="hmax">Высота штабеля АКБ, ЗУ и коробок, см</label>
+        <input type="number" id="hmax" min="20" step="5" value="120">
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-det">
+    <h2 id="h-det">Расчёт по позициям</h2>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Позиция</th><th>Шт.</th><th>Вес, кг</th><th>Объём, м³</th><th>Пол, м²</th></tr></thead>
+        <tbody id="tbody"></tbody>
+        <tfoot><tr><td>Итого</td><td></td><td class="num" id="f-kg"></td><td class="num" id="f-vol"></td><td class="num" id="f-floor"></td></tr></tfoot>
+      </table>
+    </div>
+    <details>
+      <summary>Размеры и вес позиций</summary>
+      <p class="note" style="margin-top:0">Размеры одной единицы в см, вес в кг. Изменения сохраняются в этом браузере.</p>
+      <div class="params" id="params"></div>
+      <div class="actions" style="margin-top:12px"><button type="button" class="btn-sec" id="reset">Вернуть исходные размеры</button></div>
+    </details>
+  </section>
+
+  <section aria-labelledby="h-req">
+    <h2 id="h-req">Заявка перевозчику</h2>
+    <div class="actions">
+      <button type="button" class="btn" id="copy">Скопировать текст заявки</button>
+      <button type="button" class="btn-sec" id="clear">Обнулить количество</button>
+    </div>
+    <textarea id="req" readonly aria-label="Текст заявки"></textarea>
+  </section>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+const DEFAULTS = [
+  {id:'kash',  name:'Кашалот (электроснегокат)', L:117,  W:60.5, H:67, kg:31,  stack:false},
+  {id:'zu',    name:'Зарядное устройство', L:18,  W:6.5,  H:9,  kg:1,   stack:true},
+  {id:'akb',   name:'Аккумулятор', L:30, W:15,   H:9,  kg:6.5, stack:true},
+  {id:'beach', name:'Пляжный модуль, собранный',   L:50, W:60, H:40, kg:7,   stack:false},
+  {id:'beach_flat', name:'Пляжный модуль, разобранный', L:50, W:60, H:10, kg:7, stack:false},
+  {id:'summer',name:'Летний модуль, собранный',    L:50, W:60, H:40, kg:4.5, stack:false},
+  {id:'summer_flat', name:'Летний модуль, разобранный', L:50, W:60, H:10, kg:4.5, stack:false},
+  {id:'ski',   name:'Зимние лыжи',        L:0,    W:0,    H:0,  kg:0,   stack:false},
+  {id:'rubber',name:'Гладкая резина',     L:0,    W:0,    H:0,  kg:0,   stack:false},
+];
+const START_QTY = {kash:9, zu:9, akb:16, beach:2, beach_flat:0, summer:0, summer_flat:0, ski:0, rubber:0};
+const KEY = 'kashalot-gruz-v1';
+// Площадь пола на один кашалот по нормам отгрузки (уже с запасом), м²
+const KCONF = [
+  {id:'beach_up_fold', name:'Пляжный модуль, стоя, руль сложен',    m2:0.46},
+  {id:'beach_up',      name:'Пляжный модуль, стоя, руль разложен',  m2:0.68},
+  {id:'beach_flat',    name:'Пляжный модуль, лёжа',                 m2:0.91},
+  {id:'winter_up',     name:'Зимний модуль без лыж, стоя',          m2:0.27},
+  {id:'winter_flat',   name:'Зимний модуль без лыж, лёжа',          m2:0.5},
+  {id:'winter_ski_up', name:'Зимний модуль с лыжами, стоя',         m2:0.4},
+  {id:'winter_ski',    name:'Зимний модуль с лыжами, лёжа',         m2:0.91},
+];
+
+function load(){
+  try{ const s = JSON.parse(localStorage.getItem(KEY)); if(s && s.items) return s; }catch(e){}
+  return null;
+}
+const saved = load();
+// Сохранённые размеры берём, только если они заполнены — иначе остаются исходные
+let items = DEFAULTS.map(d => { const s = saved && saved.items[d.id]; return Object.assign({}, d, s && hasDims(s) ? s : {}, {stack:d.stack}); });
+let qty = Object.assign({}, START_QTY, saved ? saved.qty : {});
+let kconf = saved && KCONF.some(c=>c.id===saved.kconf) ? saved.kconf : 'winter_ski';
+const conf = () => KCONF.find(c=>c.id===kconf);
+// Коробки с запчастями: у каждой свои размеры, вес и количество
+let boxes = saved && Array.isArray(saved.boxes) ? saved.boxes : null;
+if(!boxes){
+  const old = saved && saved.items.parts;
+  boxes = [{id:'box1', L:old?old.L:0, W:old?old.W:0, H:old?old.H:0, kg:old?old.kg:0}];
+  qty.box1 = saved && saved.qty.parts != null ? saved.qty.parts : 1;
+}
+let boxSeq = boxes.reduce((m,b)=>Math.max(m, +b.id.slice(3)||0), 0);
+const boxItems = () => boxes.map((b,k) => Object.assign({}, b, {name:'Коробка с запчастями №'+(k+1), stack:true, custom:true}));
+const allItems = () => items.concat(boxItems());
+const $ = id => document.getElementById(id);
+if(saved){ $('pack').value = saved.pack ?? 0; $('hmax').value = saved.hmax ?? 120; }
+
+function save(){
+  try{
+    const its = {}; items.forEach(i => its[i.id] = {L:i.L,W:i.W,H:i.H,kg:i.kg});
+    localStorage.setItem(KEY, JSON.stringify({items:its, boxes, qty, kconf, pack:+$('pack').value||0, hmax:+$('hmax').value||120}));
+  }catch(e){}
+}
+
+const fmt = (n,d=2) => n.toLocaleString('ru-RU',{minimumFractionDigits:d,maximumFractionDigits:d});
+const fmtKg = n => n.toLocaleString('ru-RU',{maximumFractionDigits:1});
+const dimStr = i => `${fmtKg(i.L)}×${fmtKg(i.W)}×${fmtKg(i.H)} см`;
+function hasDims(i){ return i.L>0 && i.W>0 && i.H>0; }
+
+// Габариты одной единицы для объёма (у кашалота — плюс упаковка)
+function eff(i){
+  let L=i.L, W=i.W, H=i.H;
+  if(i.id==='kash'){
+    const p = Math.max(0, +$('pack').value||0)*2;
+    L+=p; W+=p; H+=p;
+  }
+  return {L,W,H};
+}
+
+function calc(){
+  const hmax = Math.max(1, +$('hmax').value||120);
+  const rows = allItems().map(i => {
+    const n = Math.max(0, Math.floor(qty[i.id]||0));
+    const d = eff(i);
+    const vol = n * d.L*d.W*d.H / 1e6;
+    const kg = n * i.kg;
+    let floor = 0;
+    if(i.id==='kash'){
+      floor = n * conf().m2;
+    } else if(n && hasDims(i)){
+      const layers = i.stack ? Math.max(1, Math.floor(hmax / d.H)) : 1;
+      floor = Math.ceil(n / layers) * d.L*d.W / 1e4;
+    }
+    return {i, n, d, vol, kg, floor};
+  });
+  return rows;
+}
+
+function renderItems(){
+  $('items').innerHTML = allItems().map(i => `
+    <div class="item">
+      <div style="min-width:0">
+        <div class="name">${i.name}</div>
+        ${i.custom ? `<div class="cin">
+          ${[['L','Длина, см'],['W','Ширина, см'],['H','Высота, см'],['kg','Вес, кг']].map(([k,t]) =>
+            `<div class="field"><label for="c-${i.id}-${k}">${t}</label><input type="number" min="0" step="${k==='kg'?0.1:0.5}" id="c-${i.id}-${k}" value="${i[k]||''}" placeholder="0"></div>`).join('')}
+        </div>` : `<div class="meta ${hasDims(i)?'':'miss'}" id="meta-${i.id}">${hasDims(i) ? dimStr(i)+' · '+fmtKg(i.kg)+' кг' : 'Укажите размеры и вес ниже, в «Размеры и вес позиций»'}</div>`}
+      </div>
+      <div class="qty">
+        <button type="button" data-d="-1" data-id="${i.id}" aria-label="Меньше: ${i.name}">−</button>
+        <input type="number" inputmode="numeric" min="0" id="q-${i.id}" value="${qty[i.id]||0}" aria-label="Количество: ${i.name}">
+        <button type="button" data-d="1" data-id="${i.id}" aria-label="Больше: ${i.name}">+</button>
+      </div>
+      ${i.custom ? `<button type="button" class="del" data-del="${i.id}" aria-label="Удалить: ${i.name}">Удалить коробку</button>` : ''}
+    </div>`).join('') +
+  `<button type="button" class="add-box" id="add-box">+ Добавить коробку с запчастями</button>`;
+}
+
+function renderParams(){
+  $('params').innerHTML = items.filter(i => !i.custom).map(i => `
+    <div class="prow">
+      <div class="pn">${i.name}</div>
+      <div class="field"><label for="p-${i.id}-L">Длина</label><input type="number" step="0.5" min="0" id="p-${i.id}-L" value="${i.L}"></div>
+      <div class="field"><label for="p-${i.id}-W">Ширина</label><input type="number" step="0.5" min="0" id="p-${i.id}-W" value="${i.W}"></div>
+      <div class="field"><label for="p-${i.id}-H">Высота</label><input type="number" step="0.5" min="0" id="p-${i.id}-H" value="${i.H}"></div>
+      <div class="field"><label for="p-${i.id}-kg">Вес, кг</label><input type="number" step="0.1" min="0" id="p-${i.id}-kg" value="${i.kg}"></div>
+    </div>`).join('');
+}
+
+function update(){
+  const rows = calc();
+  let V=0,K=0,F=0;
+  $('tbody').innerHTML = rows.filter(r=>r.n>0).map(r => {
+    V+=r.vol; K+=r.kg; F+=r.floor;
+    return `<tr><td>${r.i.name}</td><td class="num">${r.n}</td><td class="num">${fmtKg(r.kg)}</td><td class="num">${fmt(r.vol,3)}</td><td class="num">${fmt(r.floor)}</td></tr>`;
+  }).join('') || `<tr><td colspan="5" style="text-align:center;color:var(--muted)">Добавьте позиции выше</td></tr>`;
+  $('t-vol').textContent = fmt(V); $('t-kg').textContent = fmtKg(K);
+  $('t-floor').textContent = fmt(F);   $('f-vol').textContent = fmt(V,3); $('f-kg').textContent = fmtKg(K); $('f-floor').textContent = fmt(F);
+
+  const missing = rows.filter(r=>r.n>0 && !hasDims(r.i)).map(r=>r.i.name);
+  const pack = +$('pack').value||0;
+  let note = `Кашалот: ${conf().name.toLowerCase()}, ${fmt(conf().m2)} м² пола на штуку (с запасом). Объём и вес — без запаса, по габаритам 117×60,5×67 см.`;
+  note += pack ? ` К размерам кашалота добавлено по ${pack} см на упаковку.` : ' Размеры без упаковки.';
+  note += ' Штабелем ставятся только АКБ, ЗУ и коробки с запчастями, остальное — в один слой.';
+  if(missing.length) note = `Не указаны размеры: ${missing.join(', ')}. Они не попали в объём и площадь. ` + note;
+  $('t-note').textContent = note;
+  $('req').value = requestText(rows, V, K, F);
+  save();
+}
+
+function requestText(rows, V, K, F){
+  const lines = rows.filter(r=>r.n>0).map(r => {
+    const i = r.i;
+    const dims = hasDims(i) ? dimStr(i) : 'размеры уточняются';
+    return `— ${i.name}: ${r.n} шт., ${dims}, ${fmtKg(i.kg)} кг/шт.`;
+  });
+  if(!lines.length) return '';
+  const akb = rows.find(r=>r.i.id==='akb' && r.n>0);
+  return [
+    'Добрый день! Прошу рассчитать стоимость перевозки.',
+    'Маршрут: ____ → ____, от адреса до адреса.',
+    '',
+    ...lines,
+    '',
+    `Итого: ${fmt(V)} м³, ${fmtKg(K)} кг, около ${fmt(F)} м² по полу` + ((+$('pack').value||0) ? ' (с упаковкой кашалотов).' : ' (без упаковки).'),
+    'Кашалоты — электроснегокаты, исполнение: ' + conf().name.toLowerCase() + '. Нужна жёсткая упаковка/обрешётка.',
+    akb ? 'Аккумуляторы литий-ионные — подтвердите, пожалуйста, условия приёма и маркировку.' : '',
+  ].filter((l,idx,a)=>!(l==='' && a[idx-1]==='')).join('\n').trim();
+}
+
+function toast(t){ const el=$('toast'); el.textContent=t; el.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>el.classList.remove('show'),1800); }
+
+$('kconf').innerHTML = [['Стоя','стоя'],['Лёжа','лёжа']].map(([g,w]) =>
+  `<optgroup label="${g}">` + KCONF.filter(c=>c.name.includes(w)).map(c=>`<option value="${c.id}">${c.name} — ${String(c.m2).replace('.',',')} м²</option>`).join('') + '</optgroup>').join('');
+$('kconf').value = kconf;
+
+$('items').addEventListener('click', e => {
+  if(e.target.id==='add-box'){
+    const id = 'box'+(++boxSeq); boxes.push({id, L:0, W:0, H:0, kg:0}); qty[id]=1;
+    renderItems(); update(); $('c-'+id+'-L').focus(); return;
+  }
+  const del = e.target.closest('button[data-del]');
+  if(del){ boxes = boxes.filter(b=>b.id!==del.dataset.del); delete qty[del.dataset.del]; renderItems(); update(); return; }
+  const b = e.target.closest('button[data-id]'); if(!b) return;
+  const id=b.dataset.id; qty[id]=Math.max(0,(+qty[id]||0)+(+b.dataset.d)); $('q-'+id).value=qty[id]; update();
+});
+$('items').addEventListener('input', e => {
+  const c = e.target.id.match(/^c-(\w+)-(L|W|H|kg)$/);
+  if(c){ boxes.find(b=>b.id===c[1])[c[2]] = Math.max(0, +e.target.value||0); update(); return; }
+  if(!e.target.id.startsWith('q-')) return;
+  qty[e.target.id.slice(2)] = Math.max(0, Math.floor(+e.target.value||0)); update();
+});
+$('params').addEventListener('input', e => {
+  const m = e.target.id.match(/^p-(\w+)-(L|W|H|kg|st)$/); if(!m) return;
+  const it = items.find(i=>i.id===m[1]);
+  if(m[2]==='st') it.stack = e.target.checked; else it[m[2]] = Math.max(0, +e.target.value||0);
+  const meta = $('meta-'+it.id);
+  meta.className = 'meta' + (hasDims(it)?'':' miss');
+  meta.textContent = hasDims(it) ? dimStr(it)+' · '+fmtKg(it.kg)+' кг' : 'Укажите размеры и вес ниже, в «Размеры и вес позиций»';
+  update();
+});
+$('kconf').onchange = e => { kconf = e.target.value; update(); };
+$('pack').oninput = update; $('hmax').oninput = update;
+$('reset').onclick = () => { items = DEFAULTS.map(d=>Object.assign({},d)); renderItems(); renderParams(); update(); toast('Размеры возвращены'); };
+$('clear').onclick = () => { allItems().forEach(i=>qty[i.id]=0); renderItems(); update(); };
+$('copy').onclick = () => {
+  const t = $('req').value; if(!t){ toast('Сначала укажите количество'); return; }
+  const fallback = () => { $('req').select(); toast('Текст выделен — нажмите Ctrl+C'); };
+  try{ navigator.clipboard.writeText(t).then(()=>toast('Заявка скопирована'), fallback); }catch(e){ fallback(); }
+};
+
+renderItems(); renderParams(); update();
+</script>
+</body>
+</html>
