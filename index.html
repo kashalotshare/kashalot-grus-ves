@@ -123,7 +123,7 @@ textarea{width:100%;min-height:150px;margin-top:12px;padding:12px;border:1px sol
         <input type="number" id="pack" min="0" step="1" value="0">
       </div>
       <div class="field" style="width:170px">
-        <label for="hmax">Высота штабеля АКБ, ЗУ и коробок, см</label>
+        <label for="hmax">Высота штабеля АКБ, ЗУ, резины и коробок, см</label>
         <input type="number" id="hmax" min="20" step="5" value="120">
       </div>
     </div>
@@ -148,11 +148,17 @@ textarea{width:100%;min-height:150px;margin-top:12px;padding:12px;border:1px sol
 
   <section aria-labelledby="h-req">
     <h2 id="h-req">Заявка перевозчику</h2>
-    <div class="actions">
-      <button type="button" class="btn" id="copy">Скопировать текст заявки</button>
+    <div class="lbl">Полная — со всеми позициями, размерами и весом</div>
+    <textarea id="req" readonly aria-label="Полная заявка" style="margin-top:6px"></textarea>
+    <div class="actions" style="margin-top:10px">
+      <button type="button" class="btn" id="copy">Скопировать полную</button>
+    </div>
+    <div class="lbl" style="margin-top:20px">Короткая — только итог</div>
+    <textarea id="req-short" readonly aria-label="Короткая заявка" style="margin-top:6px;min-height:90px"></textarea>
+    <div class="actions" style="margin-top:10px">
+      <button type="button" class="btn" id="copy-short">Скопировать короткую</button>
       <button type="button" class="btn-sec" id="clear">Обнулить количество</button>
     </div>
-    <textarea id="req" readonly aria-label="Текст заявки"></textarea>
   </section>
 </div>
 <div class="toast" id="toast" role="status"></div>
@@ -166,8 +172,8 @@ const DEFAULTS = [
   {id:'beach_flat', name:'Пляжный модуль, разобранный', L:50, W:60, H:10, kg:7, stack:false},
   {id:'summer',name:'Летний модуль, собранный',    L:50, W:60, H:40, kg:4.5, stack:false},
   {id:'summer_flat', name:'Летний модуль, разобранный', L:50, W:60, H:10, kg:4.5, stack:false},
-  {id:'ski',   name:'Зимние лыжи',        L:0,    W:0,    H:0,  kg:0,   stack:false},
-  {id:'rubber',name:'Гладкая резина',     L:0,    W:0,    H:0,  kg:0,   stack:false},
+  {id:'ski',   name:'Зимние лыжи',        L:50,   W:60,   H:10, kg:1,   stack:false},
+  {id:'rubber',name:'Гладкая резина, в сложенном виде', L:40, W:50, H:7, kg:3.5, stack:true},
 ];
 const START_QTY = {kash:9, zu:9, akb:16, beach:2, beach_flat:0, summer:0, summer_flat:0, ski:0, rubber:0};
 const KEY = 'kashalot-gruz-v1';
@@ -291,10 +297,16 @@ function update(){
   const pack = +$('pack').value||0;
   let note = `Кашалот: ${conf().name.toLowerCase()}, ${fmt(conf().m2)} м² пола на штуку (с запасом). Объём и вес — без запаса, по габаритам 117×60,5×67 см.`;
   note += pack ? ` К размерам кашалота добавлено по ${pack} см на упаковку.` : ' Размеры без упаковки.';
-  note += ' Штабелем ставятся только АКБ, ЗУ и коробки с запчастями, остальное — в один слой.';
+  note += ' Штабелем ставятся только АКБ, ЗУ, гладкая резина и коробки с запчастями, остальное — в один слой.';
   if(missing.length) note = `Не указаны размеры: ${missing.join(', ')}. Они не попали в объём и площадь. ` + note;
   $('t-note').textContent = note;
   $('req').value = requestText(rows, V, K, F);
+  $('req-short').value = rows.some(r=>r.n>0) ? [
+    'Прошу рассчитать стоимость перевозки.',
+    'Маршрут: ____ → ____, от адреса до адреса.',
+    '',
+    `Итого: ${fmt(V)} м³, ${fmtKg(K)} кг, около ${fmt(F)} м² по полу` + ((+$('pack').value||0) ? ' (с упаковкой кашалотов).' : ' (без упаковки).'),
+  ].join('\n') : '';
   save();
 }
 
@@ -353,11 +365,13 @@ $('kconf').onchange = e => { kconf = e.target.value; update(); };
 $('pack').oninput = update; $('hmax').oninput = update;
 $('reset').onclick = () => { items = DEFAULTS.map(d=>Object.assign({},d)); renderItems(); renderParams(); update(); toast('Размеры возвращены'); };
 $('clear').onclick = () => { allItems().forEach(i=>qty[i.id]=0); renderItems(); update(); };
-$('copy').onclick = () => {
-  const t = $('req').value; if(!t){ toast('Сначала укажите количество'); return; }
-  const fallback = () => { $('req').select(); toast('Текст выделен — нажмите Ctrl+C'); };
+function copyFrom(id){
+  const t = $(id).value; if(!t){ toast('Сначала укажите количество'); return; }
+  const fallback = () => { $(id).select(); toast('Текст выделен — нажмите Ctrl+C'); };
   try{ navigator.clipboard.writeText(t).then(()=>toast('Заявка скопирована'), fallback); }catch(e){ fallback(); }
-};
+}
+$('copy').onclick = () => copyFrom('req');
+$('copy-short').onclick = () => copyFrom('req-short');
 
 renderItems(); renderParams(); update();
 </script>
